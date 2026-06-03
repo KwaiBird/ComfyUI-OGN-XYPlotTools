@@ -471,7 +471,10 @@ function removeLoraRow(node, index) {
     }
     for (const widget of [...(node.widgets || [])]) {
         const parsed = parseLoraWidgetName(widget.name);
-        const shouldRemove = parsed?.index === index || widget.ognLoraRowRemove === index;
+        const shouldRemove =
+            parsed?.index === index ||
+            widget.ognLoraRowRemove === index ||
+            widget.ognLoraRowSpacer === index;
         if (!shouldRemove) continue;
         const widgetIndex = node.widgets.indexOf(widget);
         if (widgetIndex >= 0) node.widgets.splice(widgetIndex, 1);
@@ -490,17 +493,36 @@ function addLoraRowRemoveButton(node, index) {
     widget.ognLoraRowRemove = index;
 }
 
+function ensureLoraRowSpacer(node, index) {
+    if ((node.widgets || []).some((widget) => widget.ognLoraRowSpacer === index)) return;
+    node.widgets.push(createLoraRowSpacer(index));
+}
+
+function createLoraRowSpacer(index) {
+    return {
+        type: "custom",
+        name: `ogn_lora_row_spacer_${index}`,
+        value: null,
+        serialize: false,
+        ognLoraRowSpacer: index,
+        computeSize: () => [0, 10],
+        draw: () => { },
+    };
+}
+
 function addLoraRow(node, nodeData, index, values = {}) {
     addLoraValueWidget(node, nodeData, index, "lora", values.lora);
     addLoraValueWidget(node, nodeData, index, "strength", values.strength);
     addLoraValueWidget(node, nodeData, index, "group", values.group ?? values.group_number ?? index);
     addLoraRowRemoveButton(node, index);
+    ensureLoraRowSpacer(node, index);
 }
 
 function orderLoraWidgets(node) {
     if (!node.widgets) return;
     const widgetByName = new Map();
     const removeButtons = new Map();
+    const spacers = new Map();
     const passthrough = [];
 
     for (const widget of node.widgets) {
@@ -509,21 +531,26 @@ function orderLoraWidgets(node) {
             widgetByName.set(widget.name, widget);
         } else if (widget.ognLoraRowRemove) {
             removeButtons.set(widget.ognLoraRowRemove, widget);
+        } else if (widget.ognLoraRowSpacer) {
+            spacers.set(widget.ognLoraRowSpacer, widget);
         } else if (widget !== node.ognButtonSpacer && widget !== node.ognAddLoraButton && widget !== node.ognAddSetButton) {
             passthrough.push(widget);
         }
     }
 
     const ordered = [...passthrough];
-    for (const index of loraRowIndexes(node)) {
+    const rowIndexes = loraRowIndexes(node);
+    for (const [rowPosition, index] of rowIndexes.entries()) {
         const lora = widgetByName.get(loraWidgetName("lora", index));
         const strength = widgetByName.get(loraWidgetName("strength", index));
         const group = widgetByName.get(loraWidgetName("group", index));
         const remove = removeButtons.get(index);
+        const spacer = spacers.get(index);
         if (lora) ordered.push(lora);
         if (strength) ordered.push(strength);
         if (group) ordered.push(group);
         if (remove) ordered.push(remove);
+        if (rowPosition < rowIndexes.length - 1) ordered.push(spacer ?? createLoraRowSpacer(index));
     }
 
     if (node.ognButtonSpacer) ordered.push(node.ognButtonSpacer);
@@ -576,6 +603,7 @@ function ensureLoraButtons(node, nodeData) {
     }
     for (const index of loraRowIndexes(node)) {
         addLoraRowRemoveButton(node, index);
+        ensureLoraRowSpacer(node, index);
     }
     normalizeLoraBaseWidgets(node, nodeData);
     moveLoraButtonsToEnd(node);
