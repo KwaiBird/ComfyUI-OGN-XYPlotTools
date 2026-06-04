@@ -748,6 +748,7 @@ class OGN_XYPlot:
                 "cell_image_output_directory": ("STRING", {"default": "OGN_XYPlot"}),
                 "cell_image_filename_prefix": ("STRING", {"default": "OGN_XYPlot_cell"}),
                 "add_lora_name_to_cell_filename": ("BOOLEAN", {"default": True}),
+                "add_timestamp_to_cell_filename": ("BOOLEAN", {"default": True}),
             },
             "optional": {
                 "x_axis": ("OGN_XY_AXIS",),
@@ -791,6 +792,7 @@ class OGN_XYPlot:
         cell_image_output_directory,
         cell_image_filename_prefix,
         add_lora_name_to_cell_filename,
+        add_timestamp_to_cell_filename,
         x_axis=None,
         y_axis=None,
         unique_id=None,
@@ -824,6 +826,8 @@ class OGN_XYPlot:
         grid_layout = None
         cell_count = len(x_values) * len(y_values)
         completed_cells = 0
+        cell_filename_timestamp = str(
+            int(datetime.datetime.now().timestamp() * 1000))
         self._send_cell_progress(unique_id, completed_cells, cell_count)
         for y_index, y_value in enumerate(y_values):
             for x_index, x_value in enumerate(x_values):
@@ -859,6 +863,8 @@ class OGN_XYPlot:
                         decoded,
                         cell_image_output_directory,
                         cell_image_filename_prefix,
+                        add_timestamp_to_cell_filename,
+                        cell_filename_timestamp,
                         add_lora_name_to_cell_filename,
                         completed_cells + 1,
                         cell_lora_name,
@@ -954,6 +960,8 @@ class OGN_XYPlot:
         images,
         output_directory,
         filename_prefix,
+        add_timestamp,
+        timestamp,
         add_lora_name,
         cell_index,
         lora_name,
@@ -965,7 +973,10 @@ class OGN_XYPlot:
         prefix = self._cell_filename_prefix(output_directory, filename_prefix)
         cell = f"cell-{int(cell_index):04d}"
         lora = self._safe_filename_component(lora_name or "None")
-        parts = [prefix, cell]
+        parts = [prefix]
+        if add_timestamp:
+            parts.append(str(timestamp))
+        parts.append(cell)
         if add_lora_name:
             parts.append(lora)
         return nodes.SaveImage().save_images(

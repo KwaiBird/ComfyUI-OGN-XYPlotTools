@@ -927,15 +927,18 @@ function updateCellSaveWidgets(node) {
     const saveWidget = findWidgetByName(node, "save_each_cell_image");
     const directoryWidget = findWidgetByName(node, "cell_image_output_directory");
     const prefixWidget = findWidgetByName(node, "cell_image_filename_prefix");
+    const timestampWidget = findWidgetByName(node, "add_timestamp_to_cell_filename");
     const loraNameWidget = findWidgetByName(node, "add_lora_name_to_cell_filename");
-    if (!saveWidget || !directoryWidget || !prefixWidget || !loraNameWidget) return;
+    if (!saveWidget || !directoryWidget || !prefixWidget || !timestampWidget || !loraNameWidget) return;
 
     saveWidget.tooltip = "Save each generated cell image separately. The current cell LoRA name is added to its filename.";
     directoryWidget.tooltip = "Subdirectory inside the ComfyUI output folder for saved cell images. Time tokens such as [time(%Y-%m-%d)] are supported. Leave blank to save in output.";
     prefixWidget.tooltip = "Filename prefix for saved cell images. Cell index is added automatically.";
+    timestampWidget.tooltip = "Insert a Unix millisecond timestamp shared by all cells from the same XYPlot run.";
     loraNameWidget.tooltip = "Append the current cell LoRA name after the filename prefix and cell index.";
     setWidgetVisible(node, directoryWidget, Boolean(saveWidget.value));
     setWidgetVisible(node, prefixWidget, Boolean(saveWidget.value));
+    setWidgetVisible(node, timestampWidget, Boolean(saveWidget.value));
     setWidgetVisible(node, loraNameWidget, Boolean(saveWidget.value));
     queueNodeResize(node);
 }
