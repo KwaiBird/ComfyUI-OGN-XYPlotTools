@@ -38,8 +38,10 @@ AXIS_TYPES = [
 ]
 
 UNET_DTYPES = ["default", "fp8_e4m3fn", "fp8_e4m3fn_fast", "fp8_e5m2"]
-SEED_MODES = ["Fixed", "Increment per cell", "Increment per row", "Increment per column"]
+SEED_MODES = ["Fixed", "Increment per cell",
+              "Increment per row", "Increment per column"]
 LORA_EXTENSIONS = {".ckpt", ".pt", ".pth", ".safetensors", ".bin"}
+
 
 class AnyType(str):
     def __ne__(self, other):
@@ -79,7 +81,8 @@ def _model_folder(value):
 
 
 def _lora_folders():
-    folders = {_model_folder(value) for value in folder_paths.get_filename_list("loras")}
+    folders = {_model_folder(value)
+               for value in folder_paths.get_filename_list("loras")}
     return sorted(folders, key=lambda value: value.lower()) or ["None"]
 
 
@@ -94,7 +97,8 @@ def _lora_files_in_folder(folder):
     loras = []
     for root in folder_paths.get_folder_paths("loras"):
         root = os.path.abspath(root)
-        target = root if folder == "." else os.path.abspath(os.path.join(root, *folder.split("/")))
+        target = root if folder == "." else os.path.abspath(
+            os.path.join(root, *folder.split("/")))
         try:
             if os.path.commonpath([root, target]) != root:
                 continue
@@ -122,7 +126,8 @@ def _lora_folder_signature(folder):
             stat = os.stat(path)
         except OSError:
             continue
-        signature.append((os.path.normcase(os.path.abspath(path)), stat.st_mtime_ns, stat.st_size))
+        signature.append(
+            (os.path.normcase(os.path.abspath(path)), stat.st_mtime_ns, stat.st_size))
     return repr(signature)
 
 
@@ -251,13 +256,15 @@ class OGN_XYLoraAxis:
     CATEGORY = "OGN/XY Plot"
 
     def build_axis(self, lora_1, strength_model_1, group_number_1, **kwargs):
-        rows = {1: {"lora": lora_1, "strength_model": strength_model_1, "group_number": group_number_1}}
+        rows = {1: {"lora": lora_1, "strength_model": strength_model_1,
+                    "group_number": group_number_1}}
         for key, value in kwargs.items():
             lora_match = re.fullmatch(r"lora_(\d+)", key)
             strength_match = re.fullmatch(r"strength_model_(\d+)", key)
             group_match = re.fullmatch(r"group_number_(\d+)", key)
             nested_lora_match = re.fullmatch(r"lora(\d+)_(\d+)", key)
-            nested_strength_match = re.fullmatch(r"strength_model_(\d+)_(\d+)", key)
+            nested_strength_match = re.fullmatch(
+                r"strength_model_(\d+)_(\d+)", key)
             nested_group_match = re.fullmatch(r"group_number_(\d+)_(\d+)", key)
             if lora_match:
                 item_index = int(lora_match.group(1))
@@ -272,12 +279,14 @@ class OGN_XYLoraAxis:
                 set_index = int(nested_lora_match.group(1))
                 item_index = int(nested_lora_match.group(2))
                 legacy_index = set_index * 10000 + item_index
-                rows.setdefault(legacy_index, {"group_number": set_index})["lora"] = value
+                rows.setdefault(legacy_index, {"group_number": set_index})[
+                    "lora"] = value
             elif nested_strength_match:
                 set_index = int(nested_strength_match.group(1))
                 item_index = int(nested_strength_match.group(2))
                 legacy_index = set_index * 10000 + item_index
-                rows.setdefault(legacy_index, {"group_number": set_index})["strength_model"] = value
+                rows.setdefault(legacy_index, {"group_number": set_index})[
+                    "strength_model"] = value
             elif nested_group_match:
                 set_index = int(nested_group_match.group(1))
                 item_index = int(nested_group_match.group(2))
@@ -291,7 +300,8 @@ class OGN_XYLoraAxis:
             if not lora or str(lora).lower() == "none":
                 continue
             group_number = int(row.get("group_number", item_index))
-            strength = float(row.get("strength_model", row.get("strength", 1.0)))
+            strength = float(
+                row.get("strength_model", row.get("strength", 1.0)))
             if not math.isfinite(strength):
                 strength = 1.0
             groups.setdefault(group_number, []).append(
@@ -843,15 +853,9 @@ class OGN_XYPlot:
                     state.denoise,
                 )
                 decoded = self._decode(state.vae, sampled)
-                self._send_cell_preview(
-                    unique_id,
-                    decoded,
-                    completed_cells + 1,
-                    prompt,
-                    extra_pnginfo,
-                )
+                preview_images = None
                 if save_each_cell_image:
-                    self._save_cell_images(
+                    save_result = self._save_cell_images(
                         decoded,
                         cell_image_output_directory,
                         cell_image_filename_prefix,
@@ -861,6 +865,15 @@ class OGN_XYPlot:
                         prompt,
                         extra_pnginfo,
                     )
+                    preview_images = (save_result or {}).get("ui", {}).get("images", [])
+                self._send_cell_preview(
+                    unique_id,
+                    decoded,
+                    completed_cells + 1,
+                    prompt,
+                    extra_pnginfo,
+                    preview_images=preview_images,
+                )
                 images.append(decoded)
                 if grid_tensor is None:
                     grid_tensor, grid_layout = self._make_grid_tensor(
@@ -887,7 +900,8 @@ class OGN_XYPlot:
         cell_batch = torch.cat(images, dim=0)
         return (
             grid_tensor,
-            [image[index:index + 1, ...] for image in images for index in range(image.shape[0])],
+            [image[index:index + 1, ...]
+                for image in images for index in range(image.shape[0])],
             cell_batch,
             base.model_name,
             "\n".join(cell_lora_names),
@@ -912,23 +926,26 @@ class OGN_XYPlot:
         cell_index,
         prompt,
         extra_pnginfo,
+        preview_images=None,
     ):
         if unique_id is None:
             return
 
-        import nodes
+        if preview_images is None:
+            import nodes
 
-        preview = nodes.PreviewImage().save_images(
-            images,
-            prompt=prompt,
-            extra_pnginfo=extra_pnginfo,
-        )
+            preview = nodes.PreviewImage().save_images(
+                images,
+                prompt=prompt,
+                extra_pnginfo=extra_pnginfo,
+            )
+            preview_images = preview.get("ui", {}).get("images", [])
         PromptServer.instance.send_sync(
             "ogn_xy_plot/cell_preview",
             {
                 "node_id": str(unique_id),
                 "cell_index": int(cell_index),
-                "images": preview.get("ui", {}).get("images", []),
+                "images": preview_images,
             },
         )
 
@@ -951,7 +968,7 @@ class OGN_XYPlot:
         parts = [prefix, cell]
         if add_lora_name:
             parts.append(lora)
-        nodes.SaveImage().save_images(
+        return nodes.SaveImage().save_images(
             images,
             filename_prefix="_".join(parts),
             prompt=prompt,
@@ -1372,7 +1389,8 @@ class OGN_XYPlot:
             return
         draw.rectangle((x, y, x + width, y + height), fill=(35, 35, 35))
         max_text_width = max(1, width - padding * 2)
-        font, lines = self._fit_label_text(label, font, max_text_width, max(1, height - padding * 2))
+        font, lines = self._fit_label_text(
+            label, font, max_text_width, max(1, height - padding * 2))
         line_h = self._text_size(font, "Ag")[1] + 2
         total_h = line_h * len(lines)
         cursor_y = y + max(padding, (height - total_h) // 2)
@@ -1389,7 +1407,8 @@ class OGN_XYPlot:
         min_size = 6
         for candidate_size in range(size, min_size - 1, -1):
             candidate_font = self._font(candidate_size)
-            lines, truncated = self._wrapped_lines(label, candidate_font, max_width, max_height=max_height, return_truncated=True)
+            lines, truncated = self._wrapped_lines(
+                label, candidate_font, max_width, max_height=max_height, return_truncated=True)
             if not truncated and all(self._text_size(candidate_font, line)[0] <= max_width for line in lines):
                 return candidate_font, lines
         fitted_font = self._font(min_size)
@@ -1403,8 +1422,10 @@ class OGN_XYPlot:
             if not raw_line:
                 chunks.append("")
                 continue
-            estimate = max(8, int(max_width / max(1, self._text_size(font, "M")[0])))
-            chunks.extend(textwrap.wrap(raw_line, width=estimate, break_long_words=True) or [""])
+            estimate = max(
+                8, int(max_width / max(1, self._text_size(font, "M")[0])))
+            chunks.extend(textwrap.wrap(raw_line, width=estimate,
+                          break_long_words=True) or [""])
         line_h = self._text_size(font, "Ag")[1] + 2
         max_lines = max(1, math.floor(max_height / max(1, line_h)))
         lines = chunks[:max_lines]
@@ -1412,7 +1433,8 @@ class OGN_XYPlot:
         return (lines, truncated) if return_truncated else lines
 
     def _ellipsized_lines(self, text, font, max_width, max_height):
-        lines, truncated = self._wrapped_lines(text, font, max_width, max_height=max_height, return_truncated=True)
+        lines, truncated = self._wrapped_lines(
+            text, font, max_width, max_height=max_height, return_truncated=True)
         if not truncated:
             return lines
         if not lines:
