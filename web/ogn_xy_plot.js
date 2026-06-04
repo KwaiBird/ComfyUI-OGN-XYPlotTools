@@ -675,7 +675,8 @@ function currentEpochRangeBasePath(node) {
     const selected = ensureSafetensorsExt(findWidgetByName(node, "lora_file")?.value);
     if (!selected) return "";
 
-    if (node.ognEpochRangeUseSelectedAsBase === false) {
+    const useDetectedEpoch = Boolean(findWidgetByName(node, "use_detected_epoch")?.value);
+    if (useDetectedEpoch || node.ognEpochRangeUseSelectedAsBase === false) {
         const parsed = parseEpochLoraFile(selected);
         return parsed?.base ?? selected;
     }
@@ -772,6 +773,18 @@ function ensureLoraEpochRangeButton(node, nodeData) {
             resizeNode(node);
         };
         showPathWidget.ognEpochRangeWrapped = true;
+    }
+
+    const useDetectedWidget = findWidgetByName(node, "use_detected_epoch");
+    if (useDetectedWidget && !useDetectedWidget.ognEpochRangeWrapped) {
+        const originalCallback = useDetectedWidget.callback;
+        useDetectedWidget.callback = function (value) {
+            originalCallback?.apply(this, arguments);
+            node.ognEpochRangeUseSelectedAsBase = !value;
+            updateLoraEpochRangeBaseDisplay(node);
+            resizeNode(node);
+        };
+        useDetectedWidget.ognEpochRangeWrapped = true;
     }
 
     if (!node.ognInsertLastEpochButton) {
