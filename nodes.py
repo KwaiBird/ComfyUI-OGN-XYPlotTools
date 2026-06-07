@@ -362,12 +362,99 @@ class OGN_XYLoraFolderSelectAxis:
         return ({"type": "LoRA", "values": values},)
 
 
+class OGN_XYLoraStrengthRangeAxis:
+    DESCRIPTION = (
+        "Builds a LoRA axis by applying one selected LoRA at multiple strengths. "
+        "Use this to compare the same LoRA from start_strength to end_strength."
+    )
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        loras = folder_paths.get_filename_list("loras")
+        return {
+            "required": {
+                "lora_file": (loras, {
+                    "tooltip": "LoRA file to test at multiple strengths."
+                }),
+                "start_strength": ("FLOAT", {"default": 0.0, "min": -20.0, "max": 20.0, "step": 0.05, "tooltip": "First LoRA strength to include."}),
+                "end_strength": ("FLOAT", {"default": 1.0, "min": -20.0, "max": 20.0, "step": 0.05, "tooltip": "Last LoRA strength to include."}),
+                "strength_interval": ("FLOAT", {"default": 0.1, "min": 0.001, "max": 20.0, "step": 0.05, "tooltip": "Strength step between start_strength and end_strength."}),
+                "include_no_lora": ("BOOLEAN", {"default": False, "tooltip": "Add a first axis value with no LoRA loaded."}),
+            }
+        }
+
+    RETURN_TYPES = ("OGN_XY_AXIS",)
+    RETURN_NAMES = ("axis",)
+    FUNCTION = "build_axis"
+    CATEGORY = "OGN/XY Plot"
+
+    def build_axis(
+        self,
+        lora_file,
+        start_strength,
+        end_strength,
+        strength_interval,
+        include_no_lora,
+    ):
+        lora = str(lora_file or "").strip()
+        strengths = _strength_range_values(
+            start_strength, end_strength, strength_interval)
+
+        values = []
+        set_index = 1
+        if include_no_lora:
+            values.append({
+                "set": set_index,
+                "loras": [],
+            })
+            set_index += 1
+
+        if lora.lower() == "none":
+            if values:
+                return ({"type": "LoRA", "values": values},)
+            raise ValueError("lora_file must be a LoRA file, or enable include_no_lora.")
+
+        lora = _ensure_safetensors(lora)
+        for strength in strengths:
+            values.append({
+                "set": set_index,
+                "loras": [{
+                    "lora": lora,
+                    "strength_model": strength,
+                    "strength_clip": strength,
+                }],
+            })
+            set_index += 1
+
+        return ({"type": "LoRA", "values": values},)
+
+
 def _safe_lora_strength(value, default=1.0):
     try:
         strength = float(value)
     except Exception:
         return default
     return strength if math.isfinite(strength) else default
+
+
+def _strength_range_values(start, end, interval):
+    start = _safe_lora_strength(start, default=0.0)
+    end = _safe_lora_strength(end, default=start)
+    interval = abs(_safe_lora_strength(interval, default=0.1))
+    if interval <= 0:
+        raise ValueError("strength_interval must be greater than 0.")
+
+    direction = 1 if end >= start else -1
+    step = interval * direction
+    values = []
+    current = start
+    epsilon = interval / 1000000
+    while (current <= end + epsilon) if direction > 0 else (current >= end - epsilon):
+        values.append(round(current, 6))
+        current += step
+    if not values or not math.isclose(values[-1], end, abs_tol=epsilon):
+        values.append(round(end, 6))
+    return values
 
 
 def _ensure_safetensors(name):
@@ -1511,6 +1598,7 @@ NODE_CLASS_MAPPINGS = {
     "OGN_XYDiffusionModelAxis": OGN_XYDiffusionModelAxis,
     "OGN_XYSamplerAxis": OGN_XYSamplerAxis,
     "OGN_XYLoraAxis": OGN_XYLoraAxis,
+    "OGN_XYLoraStrengthRangeAxis": OGN_XYLoraStrengthRangeAxis,
     "OGN_XYLoraEpochRangeAxis": OGN_XYLoraEpochRangeAxis,
     "OGN_XYLoraStepRangeAxis": OGN_XYLoraStepRangeAxis,
     "OGN_XYLoraFolderSelectAxis": OGN_XYLoraFolderSelectAxis,
@@ -1524,6 +1612,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "OGN_XYDiffusionModelAxis": "OGN_XY Diffusion Model Axis",
     "OGN_XYSamplerAxis": "OGN_XY Sampler Axis",
     "OGN_XYLoraAxis": "OGN_XY LoRA Axis",
+    "OGN_XYLoraStrengthRangeAxis": "OGN_XY LoRA Strength Range Axis",
     "OGN_XYLoraEpochRangeAxis": "OGN_XY LoRA Epoch Range Axis",
     "OGN_XYLoraStepRangeAxis": "OGN_XY LoRA Step Range Axis",
     "OGN_XYLoraFolderSelectAxis": "OGN_XY LoRA FolderSelect Axis",

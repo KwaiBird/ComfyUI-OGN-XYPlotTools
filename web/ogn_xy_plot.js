@@ -28,6 +28,9 @@ const NODE_CONFIG = {
         label: "LoRA",
         loraSets: true,
     },
+    OGN_XYLoraStrengthRangeAxis: {
+        label: "LoRA Strength Range",
+    },
     OGN_XYLoraEpochRangeAxis: {
         label: "LoRA Epoch Range",
         loraEpochRange: true,
@@ -824,6 +827,9 @@ function ensureLoraEpochRangeButton(node, nodeData) {
 
 function ensureButton(node, config, nodeData) {
     node.serialize_widgets = true;
+    if (!config.button && !config.removeButton) {
+        return;
+    }
     if (node.ognAddButton && (node.ognRemoveButton || !config.removeButton)) {
         moveButtonToEnd(node);
         return;
@@ -839,6 +845,10 @@ function ensureButton(node, config, nodeData) {
         });
     }
     moveButtonToEnd(node);
+}
+
+function hasDynamicRows(config) {
+    return Array.isArray(config.rows);
 }
 
 function requestNodeRedraw() {
@@ -1082,7 +1092,9 @@ app.registerExtension({
                 return;
             }
             ensureButton(this, config, nodeData);
-            restoreDynamicWidgets(this, config, nodeData, info?.ogn_dynamic_widgets);
+            if (hasDynamicRows(config)) {
+                restoreDynamicWidgets(this, config, nodeData, info?.ogn_dynamic_widgets);
+            }
         };
 
         const onSerialize = nodeType.prototype.onSerialize;
@@ -1098,7 +1110,9 @@ app.registerExtension({
                 updateLoraEpochRangeBaseDisplay(this);
                 return;
             }
-            data.ogn_dynamic_widgets = saveDynamicWidgets(this, config);
+            if (hasDynamicRows(config)) {
+                data.ogn_dynamic_widgets = saveDynamicWidgets(this, config);
+            }
         };
     },
 });
