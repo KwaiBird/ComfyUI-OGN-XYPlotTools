@@ -819,6 +819,7 @@ class OGN_XYPlot:
         )
 
         images = []
+        saved_cell_images = []
         cell_lora_names = []
         x_labels = [self._label(x_type, value) for value in x_values]
         y_labels = [self._label(y_type, value) for value in y_values]
@@ -872,6 +873,7 @@ class OGN_XYPlot:
                         extra_pnginfo,
                     )
                     preview_images = (save_result or {}).get("ui", {}).get("images", [])
+                    saved_cell_images.extend(preview_images)
                 self._send_cell_preview(
                     unique_id,
                     decoded,
@@ -904,7 +906,7 @@ class OGN_XYPlot:
                     unique_id, completed_cells, cell_count)
 
         cell_batch = torch.cat(images, dim=0)
-        return (
+        result = (
             grid_tensor,
             [image[index:index + 1, ...]
                 for image in images for index in range(image.shape[0])],
@@ -912,6 +914,9 @@ class OGN_XYPlot:
             base.model_name,
             "\n".join(cell_lora_names),
         )
+        if saved_cell_images:
+            return {"ui": {"images": saved_cell_images}, "result": result}
+        return result
 
     def _send_cell_progress(self, unique_id, completed, total):
         if unique_id is None:
