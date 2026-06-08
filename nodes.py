@@ -836,6 +836,7 @@ class OGN_XYPlot:
                 "cell_image_filename_prefix": ("STRING", {"default": "OGN_XYPlot_cell"}),
                 "add_lora_name_to_cell_filename": ("BOOLEAN", {"default": True}),
                 "add_timestamp_to_cell_filename": ("BOOLEAN", {"default": True}),
+                "show_cell_image_preview": ("BOOLEAN", {"default": False}),
             },
             "optional": {
                 "x_axis": ("OGN_XY_AXIS",),
@@ -880,6 +881,7 @@ class OGN_XYPlot:
         cell_image_filename_prefix,
         add_lora_name_to_cell_filename,
         add_timestamp_to_cell_filename,
+        show_cell_image_preview,
         x_axis=None,
         y_axis=None,
         unique_id=None,
@@ -961,14 +963,15 @@ class OGN_XYPlot:
                     )
                     preview_images = (save_result or {}).get("ui", {}).get("images", [])
                     saved_cell_images.extend(preview_images)
-                self._send_cell_preview(
-                    unique_id,
-                    decoded,
-                    completed_cells + 1,
-                    prompt,
-                    extra_pnginfo,
-                    preview_images=preview_images,
-                )
+                if show_cell_image_preview:
+                    self._send_cell_preview(
+                        unique_id,
+                        decoded,
+                        completed_cells + 1,
+                        prompt,
+                        extra_pnginfo,
+                        preview_images=preview_images,
+                    )
                 images.append(decoded)
                 if grid_tensor is None:
                     grid_tensor, grid_layout = self._make_grid_tensor(

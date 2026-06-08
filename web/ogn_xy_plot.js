@@ -939,13 +939,15 @@ function updateCellSaveWidgets(node) {
     const prefixWidget = findWidgetByName(node, "cell_image_filename_prefix");
     const timestampWidget = findWidgetByName(node, "add_timestamp_to_cell_filename");
     const loraNameWidget = findWidgetByName(node, "add_lora_name_to_cell_filename");
-    if (!saveWidget || !directoryWidget || !prefixWidget || !timestampWidget || !loraNameWidget) return;
+    const previewWidget = findWidgetByName(node, "show_cell_image_preview");
+    if (!saveWidget || !directoryWidget || !prefixWidget || !timestampWidget || !loraNameWidget || !previewWidget) return;
 
     saveWidget.tooltip = "Save each generated cell image separately. The current cell LoRA name is added to its filename.";
     directoryWidget.tooltip = "Subdirectory inside the ComfyUI output folder for saved cell images. Time tokens such as [time(%Y-%m-%d)] are supported. Leave blank to save in output.";
     prefixWidget.tooltip = "Filename prefix for saved cell images. Cell index is added automatically.";
     timestampWidget.tooltip = "Insert a Unix millisecond timestamp shared by all cells from the same XYPlot run.";
     loraNameWidget.tooltip = "Append the current cell LoRA name after the filename prefix and cell index.";
+    previewWidget.tooltip = "Update nodes connected to cell_image as each cell finishes.";
     setWidgetVisible(node, directoryWidget, Boolean(saveWidget.value));
     setWidgetVisible(node, prefixWidget, Boolean(saveWidget.value));
     setWidgetVisible(node, timestampWidget, Boolean(saveWidget.value));
@@ -1029,6 +1031,26 @@ api.addEventListener("ogn_xy_plot/cell_preview", ({ detail }) => {
             detail.images,
         );
     }
+});
+
+function isXYPlotNode(node) {
+    return node?.comfyClass === "OGN_XYPlot" || node?.type === "OGN_XYPlot";
+}
+
+function clearXYPlotNodePreview(node) {
+    if (!isXYPlotNode(node) || !node.imgs?.length) return;
+    delete node.imgs;
+    node.imageIndex = null;
+    node.setDirtyCanvas?.(true, true);
+    requestNodeRedraw();
+}
+
+api.addEventListener("executed", ({ detail }) => {
+    const nodeId = Number(detail?.display_node ?? detail?.node);
+    const node = app.graph?.getNodeById?.(nodeId);
+    if (!isXYPlotNode(node)) return;
+
+    requestAnimationFrame(() => clearXYPlotNodePreview(node));
 });
 
 app.registerExtension({
